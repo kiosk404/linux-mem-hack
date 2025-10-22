@@ -12,53 +12,82 @@
 - 如何通过内存读写修改游戏状态
 - 如何使用不同的技术手段进行游戏作弊
 - 如何理解Linux内存管理机制在游戏安全中的作用
+- 包括基础内存修改、ptrace系统调用、指针链跟踪等多种技术
 
 ## 文件说明
 
 ### 游戏演示程序
 
-- `game-demo.c` - 经典的内存修改演示游戏
+- `game_demo.c` - 经典的内存修改演示游戏
   - 一个简单的生命值游戏，包含全局变量 `player_health`
   - 程序会输出进程ID和内存地址，便于后续的内存修改
   - 生命值会不断减少，模拟游戏场景
 
-- `game-demo-sig.c` - 信号控制版本的游戏
+- `game_demo_sig.c` - 信号控制版本的游戏
   - 同样包含全局变量 `player_health`
   - 通过信号（SIGUSR1）控制生命值变化
   - 需要通过 `kill -SIGUSR1 PID` 命令来发送伤害信号
 
+- `game_demo_pointer.c` - 指针链追踪演示游戏
+  - 使用复杂的数据结构和指针链存储生命值
+  - 模拟真实游戏中更复杂的内存布局
+  - 用于演示指针链追踪技术
+
 ### 破解工具
 
-- `hacker_trainer-mem.c` - 通过 `/proc/[pid]/mem` 修改内存
+- `hacker_trainer_mem.c` - 通过 `/proc/[pid]/mem` 修改内存
   - 直接访问进程的内存文件进行读写
   - 可以将目标进程的游戏生命值恢复到满值
 
-- `hacker_trainer-ptrace.c` - 使用 `ptrace` 系统调用
+- `hacker_trainer_ptrace.c` - 使用 `ptrace` 系统调用
   - 使用 `ptrace` 附加到目标进程
   - 读取和修改进程内存
   - 更加隐蔽和安全的内存修改方式
+
+- `hacker_lock_health.c` - 锁血外挂程序
+  - 使用ptrace持续锁定目标进程的生命值
+  - 根据进程内存布局计算目标地址
+  - 需要root权限运行
+
+### Python脚本工具
+
+- `game_health_lock.py` - Python自动化锁血脚本
+  - 通过指针链自动追踪并锁定游戏生命值
+  - 自动搜索游戏进程
+  - 持续监控并保持目标血量
+
+- `verify_pointer.py` - 指针链验证工具
+  - 验证指针链的有效性
+  - 帮助调试和验证内存地址
+  - 测试多种可能的指针链路径
 
 ## 编译和运行
 
 ### 编译游戏和破解工具
 
 ```bash
-# 编译游戏
-gcc -o game game-demo.c
+# 编译基础游戏
+gcc -o game game_demo.c
 
 # 编译信号版本游戏
-gcc -o game-sig game-demo-sig.c
+gcc -o game-sig game_demo_sig.c
+
+# 编译指针链游戏
+gcc -o game-pointer game_demo_pointer.c
 
 # 编译内存修改工具
-gcc -o mem-hack hacker_trainer-mem.c
+gcc -o mem-hack hacker_trainer_mem.c
 
 # 编译 ptrace 工具
-gcc -o ptrace-hack hacker_trainer-ptrace.c
+gcc -o ptrace-hack hacker_trainer_ptrace.c
+
+# 编译锁血工具
+gcc -o lock-health hacker_lock_health.c
 ```
 
 ### 运行示例
 
-1. 启动游戏:
+1. 启动基础游戏:
 ```bash
 ./game
 # 输出例如:
@@ -79,6 +108,27 @@ gcc -o ptrace-hack hacker_trainer-ptrace.c
 ./ptrace-hack 1234 0x40403c
 ```
 
+3. 使用指针链追踪技术:
+```bash
+# 首先启动指针链游戏
+./game-pointer
+
+# 验证指针链
+sudo python3 verify_pointer.py
+
+# 使用Python锁血脚本
+sudo python3 game_health_lock.py
+```
+
+4. 使用锁血外挂:
+```bash
+# 启动游戏
+./game
+
+# 使用锁血工具 (需要sudo权限)
+sudo ./lock-health <game_pid>
+```
+
 ## 技术原理
 
 ### 使用 `/proc/[pid]/mem`
@@ -94,11 +144,24 @@ gcc -o ptrace-hack hacker_trainer-ptrace.c
 - 提供了读写内存和寄存器的功能
 - 更安全，但需要更复杂的编程
 
+### 指针链追踪技术
+
+- 真实游戏中，数据通常通过复杂的数据结构和指针链存储
+- 通过分析内存布局和指针关系，可以追踪到目标数据
+- 这是一种更高级的内存修改技术
+
 ## 安全注意事项
 
 - 本项目仅供学习和研究目的
 - 了解游戏破解原理有助于开发更安全的游戏
 - 在实际游戏中，应采用服务器验证、加密等技术防止作弊
 - 使用这些技术时需确保拥有合法权限
+- 部分工具需要root权限运行，使用时请注意系统安全
 
+## 教育价值
 
+- 理解Linux内存管理机制
+- 学习进程间内存访问技术
+- 了解游戏安全防护机制
+- 掌握调试技术基础原理
+- 从攻击者角度思考安全问题，有助于开发更安全的应用程序
